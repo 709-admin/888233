@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="theme-color" content="#f3f5f4" />
+	<title>登录 · 709管理平台</title>
+	<style>
+		:root {
+			color-scheme: light;
+			--ink: #1e2926;
+			--muted: #74807b;
+			--line: #e3e8e5;
+			--green: #176b54;
+			--green-dark: #105640;
+			--paper: #fff;
+			--canvas: #f3f5f4;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			min-height: 100vh;
+			background: var(--canvas);
+			color: var(--ink);
+			font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+			-webkit-font-smoothing: antialiased;
+		}
+		button, input { font: inherit; }
+		.layout { min-height: 100vh; display: grid; grid-template-columns: minmax(360px, 1fr) minmax(460px, 1fr); }
+		.story {
+			position: relative;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+			overflow: hidden;
+			min-height: 680px;
+			padding: 42px clamp(36px, 6vw, 88px) 34px;
+			background: #174b3d;
+			color: #f6f7f1;
+		}
+		.story::before, .story::after { position: absolute; content: ""; pointer-events: none; }
+		.story::before {
+			width: min(42vw, 570px); aspect-ratio: 1; right: -13%; top: 17%;
+			border: 1px solid rgba(234, 242, 223, .22); border-radius: 50%;
+			box-shadow: 0 0 0 38px rgba(234, 242, 223, .035), 0 0 0 88px rgba(234, 242, 223, .025);
+		}
+		.story::after {
+			width: 32vw; height: 1px; right: 1%; top: 57%; transform: rotate(-43deg);
+			background: rgba(234, 242, 223, .2);
+		}
+		.brand, .story-copy, .story-foot { position: relative; z-index: 1; }
+		.brand { display: flex; align-items: center; gap: 12px; font-size: 17px; font-weight: 650; letter-spacing: .02em; }
+		.brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgba(255,255,255,.6); border-radius: 9px; }
+		.brand-mark svg { width: 20px; height: 20px; }
+		.story-copy { max-width: 500px; margin: 100px 0 115px; }
+		.story-eyebrow { margin: 0 0 22px; color: #b8d5c1; font-size: 12px; font-weight: 650; letter-spacing: .12em; }
+		.story h1 { margin: 0; max-width: 480px; font-family: "Songti SC", "Noto Serif CJK SC", serif; font-size: clamp(38px, 4.1vw, 58px); font-weight: 500; line-height: 1.35; }
+		.story-copy > p:last-child { max-width: 350px; margin: 22px 0 0; color: #c4d6ce; font-size: 14px; line-height: 1.9; }
+		.story-foot { display: flex; align-items: center; justify-content: space-between; color: #c2d4cb; font-size: 12px; }
+		.story-foot span:last-child { display: flex; align-items: center; gap: 8px; }
+		.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #a7d3a1; }
+		.main { display: grid; place-items: center; padding: 48px 32px; }
+		.login { width: min(100%, 390px); }
+		.mobile-brand { display: none; }
+		.login-head { margin-bottom: 34px; }
+		.login-head .eyebrow { margin: 0 0 9px; color: var(--green); font-size: 12px; font-weight: 700; letter-spacing: .1em; }
+		.login-head h2 { margin: 0; font-size: 29px; font-weight: 650; line-height: 1.35; }
+		.login-head p { margin: 9px 0 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+		.field { margin-top: 21px; }
+		.field label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+		.input-wrap { position: relative; }
+		.input-wrap input {
+			width: 100%; height: 48px; padding: 0 44px 0 14px; outline: none;
+			border: 1px solid #dce3df; border-radius: 5px; background: var(--paper); color: var(--ink);
+			font-size: 14px; transition: border-color 160ms, box-shadow 160ms;
+		}
+		.input-wrap input::placeholder { color: #a4ada8; }
+		.input-wrap input:focus { border-color: #39846e; box-shadow: 0 0 0 3px rgba(23,107,84,.1); }
+		.input-wrap input[aria-invalid="true"] { border-color: #bf5148; }
+		.field-icon { position: absolute; top: 15px; left: 14px; width: 18px; height: 18px; color: #82908a; pointer-events: none; }
+		.field.with-icon input { padding-left: 42px; }
+		.reveal {
+			position: absolute; top: 6px; right: 6px; display: grid; width: 36px; height: 36px;
+			place-items: center; border: 0; border-radius: 4px; background: transparent; color: #74817c; cursor: pointer;
+		}
+		.reveal:hover { background: #f2f5f3; color: var(--ink); }
+		.reveal svg { width: 18px; height: 18px; }
+		.field-error { display: none; margin: 6px 0 0; color: #b3423b; font-size: 12px; line-height: 1.5; }
+		.field-error.visible { display: block; }
+		.form-options { display: flex; align-items: center; justify-content: space-between; margin: 19px 0 24px; }
+		.remember { display: inline-flex; align-items: center; gap: 8px; color: #56635d; font-size: 13px; cursor: pointer; }
+		.remember input { width: 15px; height: 15px; margin: 0; accent-color: var(--green); }
+		.text-button { padding: 4px 0; border: 0; background: transparent; color: var(--green); font-size: 13px; cursor: pointer; }
+		.text-button:hover { color: var(--green-dark); text-decoration: underline; }
+		.submit {
+			display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 49px;
+			border: 0; border-radius: 5px; background: var(--green); color: white; font-size: 14px; font-weight: 650; cursor: pointer;
+			transition: background 160ms, transform 160ms;
+		}
+		.submit:hover { background: var(--green-dark); }
+		.submit:active { transform: translateY(1px); }
+		.submit:disabled { cursor: wait; opacity: .8; }
+		.submit svg { width: 17px; height: 17px; }
+		.form-message { min-height: 22px; margin: 12px 0 0; color: #b3423b; font-size: 12px; line-height: 1.6; }
+		.demo-hint { margin: 13px 0 0; padding: 9px 11px; border: 1px solid #e1ebe5; border-radius: 4px; background: #f6faf7; color: #668076; font-size: 11px; line-height: 1.6; }
+		.security-note { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 30px; color: #8b9690; font-size: 11px; }
+		.security-note svg { width: 14px; height: 14px; }
+		.copyright { margin: 46px 0 0; color: #a0aaa5; font-size: 11px; text-align: center; }
+		.toast { position: fixed; right: 24px; bottom: 24px; max-width: calc(100vw - 32px); padding: 12px 16px; border: 1px solid #dce7df; border-radius: 5px; background: white; color: var(--ink); box-shadow: 0 8px 26px rgba(20,45,34,.12); font-size: 13px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity 160ms, transform 160ms; }
+		.toast.show { opacity: 1; transform: translateY(0); }
+		@media (max-width: 900px) {
+			.layout { display: block; min-height: 100vh; min-height: 100dvh; }
+			.story { display: none; }
+			.main { display: block; min-height: 100vh; min-height: 100dvh; padding: max(30px, env(safe-area-inset-top)) 22px max(22px, env(safe-area-inset-bottom)); }
+			.login { max-width: 410px; margin: 0 auto; }
+			.mobile-brand { display: flex; margin-bottom: 42px; color: var(--green); }
+			.login-head { margin-bottom: 27px; }
+			.login-head h2 { font-size: 27px; }
+			.input-wrap input { height: 50px; font-size: 16px; }
+			.field-icon { top: 16px; }
+			.reveal { top: 7px; width: 36px; height: 36px; }
+			.remember, .text-button { min-height: 44px; display: inline-flex; align-items: center; }
+			.remember input { width: 18px; height: 18px; }
+			.form-options { margin-top: 14px; margin-bottom: 17px; }
+			.submit { min-height: 50px; }
+			.security-note { align-items: flex-start; margin-top: 22px; line-height: 1.6; text-align: center; }
+			.security-note svg { flex: 0 0 14px; margin-top: 1px; }
+			.copyright { margin-top: 30px; line-height: 1.6; }
+		}
+		@media (max-width: 380px) { .main { padding-right: 18px; padding-left: 18px; } .mobile-brand { margin-bottom: 32px; } }
+		@media (max-height: 700px) and (max-width: 900px) {
+			.main { padding-top: max(20px, env(safe-area-inset-top)); }
+			.mobile-brand { margin-bottom: 24px; }
+			.copyright { margin-top: 22px; }
+		}
+		@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+	</style>
+</head>
+<body>
+	<div class="layout" data-design-id="login-layout">
+		<aside class="story" aria-label="709平台介绍" data-design-id="brand-panel">
+			<div class="brand" data-design-id="brand-name">
+				<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 8l7 4 7-4M5 16l7-4 7 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+				<span>709管理平台</span>
+			</div>
+			<div class="story-copy" data-design-id="brand-message">
+				<p class="story-eyebrow" data-design-id="brand-eyebrow">WORKSPACE / 01</p>
+				<h1 data-design-id="brand-title">让每一份协作，<br />都有清晰脉络。</h1>
+				<p data-design-id="brand-description">统一管理团队事务与工作流程，让重要进展始终清晰、可见。</p>
+			</div>
+			<div class="story-foot" data-design-id="platform-status"><span>简洁 · 有序 · 专注</span><span><i class="status-dot"></i>服务运行正常</span></div>
+		</aside>
+		<main class="main" data-design-id="login-main">
+			<section class="login" aria-labelledby="login-title" data-design-id="login-form-section">
+				<div class="brand mobile-brand" data-design-id="mobile-brand-name"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M5 8l7 4 7-4M5 16l7-4 7 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>709管理平台</span></div>
+				<header class="login-head" data-design-id="login-heading">
+					<p class="eyebrow" data-design-id="login-eyebrow">ADMIN CONSOLE</p>
+					<h2 id="login-title" data-design-id="login-title">欢迎回来</h2>
+					<p data-design-id="login-subtitle">登录你的管理账号以继续</p>
+				</header>
+				<form id="loginForm" novalidate data-design-id="login-form">
+					<div class="field with-icon" data-design-id="account-field">
+						<label for="account">账号</label>
+						<div class="input-wrap">
+							<svg class="field-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c.7-3.4 3.1-5.2 7-5.2s6.3 1.8 7 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+							<input id="account" name="account" type="text" autocomplete="username" placeholder="请输入账号或邮箱" required aria-describedby="accountError" data-design-id="account-input" />
+						</div>
+						<p class="field-error" id="accountError" data-design-id="account-error">请输入账号或邮箱</p>
+					</div>
+					<div class="field with-icon" data-design-id="password-field">
+						<label for="password">密码</label>
+						<div class="input-wrap">
+							<svg class="field-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+							<input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" required aria-describedby="passwordError" data-design-id="password-input" />
+							<button class="reveal" id="togglePassword" type="button" aria-label="显示密码" aria-pressed="false" title="显示或隐藏密码" data-design-id="toggle-password"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.8 12s3.2-6 9.2-6 9.2 6 9.2 6-3.2 6-9.2 6-9.2-6-9.2-6Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6"/></svg></button>
+						</div>
+						<p class="field-error" id="passwordError" data-design-id="password-error">请输入密码</p>
+					</div>
+					<div class="form-options" data-design-id="login-options">
+						<label class="remember"><input id="remember" type="checkbox" data-design-id="remember-checkbox" />记住账号</label>
+						<button class="text-button" id="forgotPassword" type="button" data-design-id="forgot-password">忘记密码？</button>
+					</div>
+					<button class="submit" id="submitButton" type="submit" data-design-id="submit-login"><span>登 录</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+					<p class="form-message" id="formMessage" role="status" aria-live="polite" data-design-id="form-message"></p>
+					<p class="demo-hint" data-design-id="demo-hint">首次登录请使用安装时配置的管理员邮箱和密码。</p>
+				</form>
+				<div class="security-note" data-design-id="security-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 6v5c0 4.7 2.9 8.1 7 10 4.1-1.9 7-5.3 7-10V6l-7-3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>安全加密连接 · 请勿在公共设备保存登录信息</span></div>
+				<p class="copyright" data-design-id="copyright">© 2026 709管理平台 · 保留所有权利</p>
+			</section>
+		</main>
+	</div>
+	<div class="toast" id="toast" role="status" aria-live="polite" data-design-id="toast"></div>
+	<script>
+		const form = document.getElementById('loginForm');
+		const account = document.getElementById('account');
+		const password = document.getElementById('password');
+		const remember = document.getElementById('remember');
+		const message = document.getElementById('formMessage');
+		const submit = document.getElementById('submitButton');
+		const toast = document.getElementById('toast');
+		let toastTimer;
+
+		function showToast(text) {
+			toast.textContent = text;
+			toast.classList.add('show');
+			clearTimeout(toastTimer);
+			toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+		}
+
+		function setError(input, errorId, invalid) {
+			const error = document.getElementById(errorId);
+			input.setAttribute('aria-invalid', String(invalid));
+			error.classList.toggle('visible', invalid);
+		}
+
+		account.addEventListener('input', () => setError(account, 'accountError', false));
+		password.addEventListener('input', () => setError(password, 'passwordError', false));
+		document.getElementById('togglePassword').addEventListener('click', (event) => {
+			const button = event.currentTarget;
+			const show = password.type === 'password';
+			password.type = show ? 'text' : 'password';
+			button.setAttribute('aria-pressed', String(show));
+			button.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+		});
+		document.getElementById('forgotPassword').addEventListener('click', () => showToast('请联系系统管理员重置密码。'));
+
+		try {
+			const savedAccount = localStorage.getItem('senxu-login-account');
+			if (savedAccount) { account.value = savedAccount; remember.checked = true; }
+		} catch (_) {}
+
+		form.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			message.textContent = '';
+			const accountMissing = !account.value.trim();
+			const passwordMissing = !password.value;
+			setError(account, 'accountError', accountMissing);
+			setError(password, 'passwordError', passwordMissing);
+			if (accountMissing || passwordMissing) {
+				message.textContent = '请检查并填写完整的登录信息。';
+				(accountMissing ? account : password).focus();
+				return;
+			}
+			submit.disabled = true;
+			submit.querySelector('span').textContent = '正在验证…';
+			try {
+				const response = await fetch('/api/auth/login', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ email: account.value.trim(), password: password.value })
+				});
+				const contentType = response.headers.get('content-type') || '';
+				if (!contentType.includes('application/json')) throw new Error('登录接口返回了网页而不是 API 数据。请使用后端服务地址访问，或为当前网站配置 /api 反向代理。');
+				const result = await response.json();
+				if (!response.ok) throw new Error(result.message || '登录失败');
+				sessionStorage.setItem('senxu-token', result.token);
+				sessionStorage.setItem('senxu-current-user', JSON.stringify(result.user));
+				if (remember.checked) localStorage.setItem('senxu-login-account', account.value.trim());
+				else localStorage.removeItem('senxu-login-account');
+				window.location.href = result.user.role === '管理员' ? 'user-management.html' : 'user-home.html';
+			} catch (error) {
+				submit.disabled = false;
+				submit.querySelector('span').textContent = '登 录';
+				message.textContent = error.message === 'Failed to fetch' ? '无法连接服务器，请确认后端已启动。' : error.message;
+			}
+		});
+	</script>
+</body>
+</html>

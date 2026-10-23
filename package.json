@@ -1,0 +1,19 @@
+{
+  "name": "senxu-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "森序管理平台后台服务",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "node --watch server/app.js"
+  },
+  "dependencies": {
+    "@cloudbase/js-sdk": "^3.10.3",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

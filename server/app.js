@@ -73,12 +73,13 @@ app.post('/api/auth/login', async (req, res, next) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
+    const remember = req.body.remember === true;
     if (!email || !password) return res.status(400).json({ message: '请输入账号和密码' });
     const user = await getUserByEmail(email);
     if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ message: '账号或密码错误' });
     if (user.status !== 'active') return res.status(403).json({ message: '该账号已被停用' });
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
-    const token = jwt.sign({ id: user.id, role: user.role, name: user.name, email: user.email }, jwtSecret, { expiresIn: '8h' });
+    const token = jwt.sign({ id: user.id, role: user.role, name: user.name, email: user.email }, jwtSecret, { expiresIn: remember ? '30d' : '8h' });
     res.json({ token, user: publicUser(user) });
   } catch (error) { next(error); }
 });
@@ -191,11 +192,21 @@ app.put('/api/apps/:id', auth('管理员'), async (req, res, next) => {
 });
 
 app.delete('/api/admin/apps/:id', auth('管理员'), async (req, res, next) => {
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query("UPDATE applications SET status = 'inactive' WHERE id = $1 AND status = 'active' RETURNING id", [req.params.id]);
-    if (!rows[0]) return res.status(404).json({ message: '应用不存在或已下架' });
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT status FROM applications WHERE id = $1 FOR UPDATE', [req.params.id]);
+    const application = rows[0];
+    if (!application) { await client.query('ROLLBACK'); return res.status(404).json({ message: '应用不存在' }); }
+    if (application.status === 'active') {
+      await client.query("UPDATE applications SET status = 'inactive' WHERE id = $1", [req.params.id]);
+    } else {
+      await client.query('DELETE FROM card_keys WHERE application_id = $1', [req.params.id]);
+      await client.query('DELETE FROM applications WHERE id = $1', [req.params.id]);
+    }
+    await client.query('COMMIT');
     res.status(204).end();
-  } catch (error) { next(error); }
+  } catch (error) { await client.query('ROLLBACK'); next(error); } finally { client.release(); }
 });
 
 app.post('/api/admin/apps/:id/restore', auth('管理员'), async (req, res, next) => {

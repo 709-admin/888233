@@ -34,6 +34,7 @@
  <div class="card-modal" id="cardModal" role="presentation"><section class="card-dialog" role="dialog" aria-modal="true" aria-labelledby="cardModalTitle"><h2 id="cardModalTitle">卡密提取成功</h2><p id="cardMeta"></p><div class="card-value" id="cardValue" tabindex="0"></div><div class="card-actions"><button class="copy-card" id="copyCard" type="button">复制卡密</button><button class="continue-card" id="continueCard" type="button">继续生成</button></div></section></div>
 <div class="contact-modal" id="contactModal" role="presentation"><section class="contact-dialog" role="dialog" aria-modal="true" aria-labelledby="contactTitle"><h2 id="contactTitle">管理员联系方式</h2><p class="contact-copy">如需充值，请通过以下方式联系管理员。</p><div class="contact-details" id="contactDetails">管理员暂未设置联系方式，请稍后再试。</div><button class="contact-close" id="closeContact" type="button">关闭</button></section></div>
 <script>
+if(!sessionStorage.getItem('senxu-token')&&localStorage.getItem('senxu-token')){sessionStorage.setItem('senxu-token',localStorage.getItem('senxu-token'));sessionStorage.setItem('senxu-current-user',localStorage.getItem('senxu-current-user')||'');}
 const token=sessionStorage.getItem('senxu-token');
 const durations=['小时卡','天卡','周卡','月卡','季卡','半年卡','年卡','永久卡'];
 let applications=[],selectedDuration='';

@@ -73,7 +73,7 @@ app.post('/api/auth/login', async (req, res, next) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
-    if (!email || !password) return res.status(400).json({ message: '请输入邮箱和密码' });
+    if (!email || !password) return res.status(400).json({ message: '请输入账号和密码' });
     const user = await getUserByEmail(email);
     if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ message: '账号或密码错误' });
     if (user.status !== 'active') return res.status(403).json({ message: '该账号已被停用' });
@@ -112,9 +112,33 @@ app.post('/api/users/:id/recharge', auth('管理员'), async (req, res, next) =>
   } catch (error) { await client.query('ROLLBACK'); next(error); } finally { client.release(); }
 });
 
+app.post('/api/users/:id/reclaim-balance', auth('管理员'), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const amount = Number(req.body.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) return res.status(400).json({ message: '回收金额必须大于 0 且不超过 1000000' });
+    await client.query('BEGIN');
+    const { rows: users } = await client.query('SELECT balance FROM users WHERE id = $1 FOR UPDATE', [req.params.id]);
+    const user = users[0];
+    if (!user) { await client.query('ROLLBACK'); return res.status(404).json({ message: '用户不存在' }); }
+    if (Number(user.balance) < amount) { await client.query('ROLLBACK'); return res.status(400).json({ message: '用户余额不足，无法回收该金额' }); }
+    const { rows } = await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2 RETURNING balance', [amount, req.params.id]);
+    await client.query('INSERT INTO balance_reclaim_logs (user_id, amount, admin_id) VALUES ($1, $2, $3)', [req.params.id, amount, req.user.id]);
+    await client.query('COMMIT');
+    res.json({ balance: Number(rows[0].balance) });
+  } catch (error) { await client.query('ROLLBACK'); next(error); } finally { client.release(); }
+});
+
 app.get('/api/apps', auth(), async (_req, res, next) => {
   try {
     const { rows } = await pool.query("SELECT id, name, description, prices FROM applications WHERE status = 'active' ORDER BY name");
+    res.json({ applications: rows });
+  } catch (error) { next(error); }
+});
+
+app.get('/api/admin/apps', auth('管理员'), async (_req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT id, name, description, prices, status FROM applications ORDER BY name');
     res.json({ applications: rows });
   } catch (error) { next(error); }
 });
@@ -164,6 +188,22 @@ app.put('/api/apps/:id', auth('管理员'), async (req, res, next) => {
     if (error.code === '23505') return res.status(409).json({ message: '应用名称已被其他应用使用' });
     next(error);
   }
+});
+
+app.delete('/api/admin/apps/:id', auth('管理员'), async (req, res, next) => {
+  try {
+    const { rows } = await pool.query("UPDATE applications SET status = 'inactive' WHERE id = $1 AND status = 'active' RETURNING id", [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ message: '应用不存在或已下架' });
+    res.status(204).end();
+  } catch (error) { next(error); }
+});
+
+app.post('/api/admin/apps/:id/restore', auth('管理员'), async (req, res, next) => {
+  try {
+    const { rows } = await pool.query("UPDATE applications SET status = 'active' WHERE id = $1 AND status = 'inactive' RETURNING id", [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ message: '应用不存在或已恢复' });
+    res.status(204).end();
+  } catch (error) { next(error); }
 });
 
 app.post('/api/apps/:id/cards/import', auth('管理员'), async (req, res, next) => {
@@ -261,29 +301,31 @@ app.get('/api/cards/history', auth(), async (req, res, next) => {
 app.post('/api/users', auth('管理员'), async (req, res, next) => {
   try {
     const { name, email, password, role = '成员', department = '', status = 'active' } = req.body;
-    if (!name || !email || !password || password.length < 6) return res.status(400).json({ message: '姓名、邮箱和至少6位密码不能为空' });
+    if (!name || !email || !password || password.length < 6) return res.status(400).json({ message: '姓名、账号和至少6位密码不能为空' });
     const { rows } = await pool.query('INSERT INTO users (name, email, password_hash, role, department, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [name.trim(), email.trim().toLowerCase(), await bcrypt.hash(password, 12), role, department.trim(), status]);
     res.status(201).json({ user: publicUser(rows[0]) });
   } catch (error) {
-    if (error.code === '23505') return res.status(409).json({ message: '该邮箱已注册' });
+    if (error.code === '23505') return res.status(409).json({ message: '该账号已注册' });
     next(error);
   }
 });
 
 app.put('/api/users/:id', auth('管理员'), async (req, res, next) => {
   try {
-    const { name, email, password, role, department, status } = req.body;
+    const { name, email, password, role, department, status, balance } = req.body;
     if (!name || !email || !role || department === undefined || !['active', 'inactive'].includes(status)) return res.status(400).json({ message: '用户资料不完整' });
     if (password && password.length < 6) return res.status(400).json({ message: '密码至少需要 6 位' });
+    if (balance !== undefined && (!Number.isFinite(Number(balance)) || Number(balance) < 0 || Number(balance) > 1000000)) return res.status(400).json({ message: '余额必须是 0 到 1000000 之间的数字' });
     const values = [name.trim(), email.trim().toLowerCase(), role, department.trim(), status];
-    let passwordSql = '';
-    if (password) { values.push(await bcrypt.hash(password, 12)); passwordSql = `, password_hash = $${values.length}`; }
+    let optionalFieldsSql = '';
+    if (password) { values.push(await bcrypt.hash(password, 12)); optionalFieldsSql += `, password_hash = $${values.length}`; }
+    if (balance !== undefined) { values.push(Number(balance)); optionalFieldsSql += `, balance = $${values.length}`; }
     values.push(req.params.id);
-    const { rows } = await pool.query(`UPDATE users SET name = $1, email = $2, role = $3, department = $4, status = $5${passwordSql} WHERE id = $${values.length} RETURNING *`, values);
+    const { rows } = await pool.query(`UPDATE users SET name = $1, email = $2, role = $3, department = $4, status = $5${optionalFieldsSql} WHERE id = $${values.length} RETURNING *`, values);
     if (!rows[0]) return res.status(404).json({ message: '用户不存在' });
     res.json({ user: publicUser(rows[0]) });
   } catch (error) {
-    if (error.code === '23505') return res.status(409).json({ message: '该邮箱已注册' });
+    if (error.code === '23505') return res.status(409).json({ message: '该账号已注册' });
     next(error);
   }
 });

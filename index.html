@@ -177,7 +177,7 @@
 						<p class="field-error" id="passwordError" data-design-id="password-error">请输入密码</p>
 					</div>
 					<div class="form-options" data-design-id="login-options">
-						<label class="remember"><input id="remember" type="checkbox" data-design-id="remember-checkbox" />记住账号</label>
+<label class="remember"><input id="remember" type="checkbox" data-design-id="remember-checkbox" />保持登录状态</label>
 						<button class="text-button" id="forgotPassword" type="button" data-design-id="forgot-password">忘记密码？</button>
 					</div>
 					<button class="submit" id="submitButton" type="submit" data-design-id="submit-login"><span>登 录</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -247,7 +247,7 @@
 				const response = await fetch('/api/auth/login', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ email: account.value.trim(), password: password.value })
+					body: JSON.stringify({ email: account.value.trim(), password: password.value, remember: remember.checked })
 				});
 				const contentType = response.headers.get('content-type') || '';
 				if (!contentType.includes('application/json')) throw new Error('登录接口返回了网页而不是 API 数据。请使用后端服务地址访问，或为当前网站配置 /api 反向代理。');
@@ -255,8 +255,15 @@
 				if (!response.ok) throw new Error(result.message || '登录失败');
 				sessionStorage.setItem('senxu-token', result.token);
 				sessionStorage.setItem('senxu-current-user', JSON.stringify(result.user));
-				if (remember.checked) localStorage.setItem('senxu-login-account', account.value.trim());
-				else localStorage.removeItem('senxu-login-account');
+				if (remember.checked) {
+					localStorage.setItem('senxu-login-account', account.value.trim());
+					localStorage.setItem('senxu-token', result.token);
+					localStorage.setItem('senxu-current-user', JSON.stringify(result.user));
+				} else {
+					localStorage.removeItem('senxu-login-account');
+					localStorage.removeItem('senxu-token');
+					localStorage.removeItem('senxu-current-user');
+				}
 				window.location.href = result.user.role === '管理员' ? 'user-management.html' : 'user-home.html';
 			} catch (error) {
 				submit.disabled = false;

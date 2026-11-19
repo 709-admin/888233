@@ -46,3 +46,14 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   setting_value TEXT NOT NULL DEFAULT '',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS card_keys_available_lookup_idx
+  ON card_keys (application_id, duration, created_at)
+  WHERE status = 'available';
+
+CREATE INDEX IF NOT EXISTS card_keys_history_lookup_idx
+  ON card_keys (sold_to, sold_at DESC)
+  WHERE status = 'sold';
+
+CREATE INDEX IF NOT EXISTS recharge_logs_user_created_idx
+  ON recharge_logs (user_id, created_at DESC);

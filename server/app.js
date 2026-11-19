@@ -27,7 +27,7 @@ app.use(express.static(path.join(__dirname, '..')));
 
 function publicUser(row) {
   return {
-    id: row.id,
+    id: Number(row.id),
     name: row.name,
     email: row.email,
     role: row.role,
